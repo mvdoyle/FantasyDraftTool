@@ -7,6 +7,14 @@ import type {
   Recommendation,
   UserAdjustment
 } from '../types'
+import type {
+  EspnLeaguesResponse,
+  JaredKAvailableResponse,
+  JaredKRankingsResponse,
+  KyleDstAvailableResponse,
+  KyleDstRankingsResponse,
+  WeekOddsResponse
+} from '../week/types'
 
 export interface RecommendationRequest {
   players: Player[]
@@ -217,12 +225,21 @@ export function normalizeRecommendationResponse(response: EngineRecommendationRe
 export class DraftApiClient {
   constructor(private readonly baseUrl = '') {}
 
-  private async request<T>(path: string, init: RequestInit): Promise<T> {
+  private async request<T>(path: string, init: RequestInit = {}, timeoutMs = 4_000): Promise<T> {
     const response = await fetch(`${this.baseUrl}${path}`, {
       ...init,
-      signal: init.signal ?? AbortSignal.timeout(4_000)
+      signal: init.signal ?? AbortSignal.timeout(timeoutMs)
     })
-    if (!response.ok) throw new Error(`Draft API request failed (${response.status})`)
+    if (!response.ok) {
+      let detail = `Draft API request failed (${response.status})`
+      try {
+        const body = await response.json() as { error?: { message?: string } }
+        if (body.error?.message) detail = body.error.message
+      } catch {
+        // keep status-based message
+      }
+      throw new Error(detail)
+    }
     return response.json() as Promise<T>
   }
 
@@ -240,6 +257,52 @@ export class DraftApiClient {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content: await file.text(), strict: false })
     })
+  }
+
+  weekOdds() {
+    return this.request<WeekOddsResponse>(
+      '/api/v1/nfl/week-odds',
+      { method: 'GET' },
+      15_000
+    )
+  }
+
+  espnLeagues() {
+    return this.request<EspnLeaguesResponse>('/api/v1/espn/leagues', { method: 'GET' })
+  }
+
+  kyleDstRankings() {
+    return this.request<KyleDstRankingsResponse>(
+      '/api/v1/nfl/kyle-dst-rankings',
+      { method: 'GET' },
+      20_000
+    )
+  }
+
+  kyleDstAvailable(leagueId: string) {
+    const query = new URLSearchParams({ leagueId }).toString()
+    return this.request<KyleDstAvailableResponse>(
+      `/api/v1/nfl/kyle-dst-available?${query}`,
+      { method: 'GET' },
+      20_000
+    )
+  }
+
+  jaredKRankings() {
+    return this.request<JaredKRankingsResponse>(
+      '/api/v1/nfl/jared-k-rankings',
+      { method: 'GET' },
+      20_000
+    )
+  }
+
+  jaredKAvailable(leagueId: string) {
+    const query = new URLSearchParams({ leagueId }).toString()
+    return this.request<JaredKAvailableResponse>(
+      `/api/v1/nfl/jared-k-available?${query}`,
+      { method: 'GET' },
+      20_000
+    )
   }
 }
 

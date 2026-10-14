@@ -9,8 +9,12 @@ dependencies = [
     "python-dotenv>=1.2.2",
 ]
 
+[project.optional-dependencies]
+test = ["pytest>=8", "pytest-asyncio>=0.24"]
+
 [project.scripts]
 espn-mcp = "espn_mcp.server:main"
+espn-mcp-http = "espn_mcp.http_app:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -25,3 +29,8 @@ target-version = "py313"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+asyncio_mode = "auto"
